@@ -146,28 +146,36 @@ def fetch_emails():
 @app.route("/send/<int:index>")
 def send_draft(index):
     try:
+        # Check valid index
         if index < 0 or index >= len(review_queue):
             return redirect(url_for("index", msg="Invalid queue index."))
 
         item = review_queue[index]
         to_addr = item.get("from")
-        subject = item.get("subject") or ""
+        subject = item.get("subject") or "(no subject)"
         body = item.get("draft") or ""
-        to_addr_plain = extract_email_address(to_addr)
-        if not to_addr_plain:
-            return redirect(url_for("index", msg="Cannot determine recipient email address."))
 
+        # Extract plain email
+        import re
+        match = re.search(r'[\w\.-]+@[\w\.-]+', to_addr)
+        if not match:
+            return redirect(url_for("index", msg="Cannot determine recipient email address."))
+        to_addr_plain = match.group(0)
+
+        # Prepare message
         msg = MIMEText(body, _subtype="plain", _charset="utf-8")
         msg["Subject"] = f"Re: {subject}"
         msg["From"] = f"FlowCraftCo Support <{EMAIL_ACCOUNT}>"
         msg["To"] = to_addr_plain
 
-        # send email
-        with smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT) as server:
+        # Send email
+        import smtplib, ssl
+        context = ssl.create_default_context()
+        with smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT, context=context) as server:
             server.login(EMAIL_ACCOUNT, EMAIL_PASSWORD)
             server.sendmail(EMAIL_ACCOUNT, [to_addr_plain], msg.as_string())
 
-        # remove from queue after successful send
+        # Only remove from queue after successful send
         sent_history.append({
             "to": to_addr_plain,
             "subject": subject,
@@ -176,10 +184,11 @@ def send_draft(index):
         review_queue.pop(index)
 
         return redirect(url_for("index", msg=f"Email sent to {to_addr_plain}"))
+
     except smtplib.SMTPAuthenticationError:
-        return redirect(url_for("index", msg="SMTP Authentication failed. Check App Password."))
+        return redirect(url_for("index", msg="SMTP Authentication failed. Check Gmail App Password."))
     except smtplib.SMTPRecipientsRefused:
-        return redirect(url_for("index", msg="Recipient address refused by SMTP server."))
+        return redirect(url_for("index", msg="Recipient refused by SMTP server."))
     except Exception as e:
         return redirect(url_for("index", msg=f"Error sending email: {e}"))
 
