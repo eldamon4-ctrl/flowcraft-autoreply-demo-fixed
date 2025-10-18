@@ -61,16 +61,19 @@ Original email:
 If the email is clearly a sales inquiry, offer a next step (e.g., "Would you like a quick call?"). If it's a request, offer to deliver the item or next action. Always include one clear call-to-action when appropriate.
 """
     try:
-        resp = openai.ChatCompletion.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": system_msg},
-                {"role": "user", "content": user_prompt}
-            ],
-            temperature=0.6,
-            max_tokens=400
-        )
-        draft = resp["choices"][0]["message"]["content"].strip()
+        from openai import OpenAI
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+resp = client.chat.completions.create(
+    model="gpt-4o-mini",
+    messages=[
+        {"role": "system", "content": system_msg},
+        {"role": "user", "content": user_prompt}
+    ],
+    temperature=0.6,
+    max_tokens=400
+)
+draft = resp.choices[0].message.content.strip()
         return draft
     except Exception as e:
         return f"(Error generating reply: {e})"
