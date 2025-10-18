@@ -12,7 +12,7 @@ IMAP_SERVER = 'imap.gmail.com'
 SMTP_SERVER = 'smtp.gmail.com'
 EMAIL_ACCOUNT = 'damonflowcraftco@gmail.com'
 EMAIL_PASSWORD = 'DamonMoreau4!'
-OPENAI_API_KEY = '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'
+OPENAI_API_KEY = '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'
 
 openai.api_key = OPENAI_API_KEY
 review_queue = []
