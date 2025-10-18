@@ -11,7 +11,7 @@ app = Flask(__name__)
 IMAP_SERVER = 'imap.gmail.com'
 SMTP_SERVER = 'smtp.gmail.com'
 EMAIL_ACCOUNT = 'damonflowcraftco@gmail.com'
-EMAIL_PASSWORD = 'DamonMoreau4!'
+EMAIL_PASSWORD = 'sncj fetn jenw rgxi'
 OPENAI_API_KEY = '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'
 
 openai.api_key = OPENAI_API_KEY
