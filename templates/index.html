@@ -1,79 +1,38 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>FlowCraft AutoReply Dashboard</title>
-
-  <!-- Bootstrap CSS -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-
-  <!-- Custom Styling -->
   <style>
-    body {
-      font-family: 'Segoe UI', sans-serif;
-      background-color: #f4f6f9;
-      color: #2c3e50;
-    }
-    header {
-      background: linear-gradient(90deg, #2c3e50, #1abc9c);
-      color: white;
-      padding: 20px 0;
-      text-align: center;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-      margin-bottom: 30px;
-    }
-    header h1 {
-      margin: 0;
-      font-size: 2rem;
-      font-weight: 700;
-    }
-    .btn-primary {
-      background: linear-gradient(90deg, #1abc9c, #16a085);
-      border: none;
-    }
-    .btn-primary:hover {
-      background: linear-gradient(90deg, #16a085, #1abc9c);
-    }
-    .card {
-      border-radius: 12px;
-      box-shadow: 0 6px 18px rgba(0,0,0,0.1);
-      margin-bottom: 25px;
-    }
-    table {
-      table-layout: fixed;
-      word-wrap: break-word;
-    }
-    .draft-text {
-      white-space: pre-wrap;
-      font-size: 0.95rem;
-    }
-    footer {
-      text-align: center;
-      padding: 15px 0;
-      color: #7f8c8d;
-    }
+    body { font-family: 'Segoe UI', sans-serif; background-color: #f4f6f9; color: #2c3e50; }
+    header { background: linear-gradient(90deg, #2c3e50, #1abc9c); color: white; padding: 20px 0; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 30px; }
+    header h1 { margin: 0; font-size: 2rem; font-weight: 700; }
+    .btn-primary { background: linear-gradient(90deg, #1abc9c, #16a085); border: none; }
+    .btn-primary:hover { background: linear-gradient(90deg, #16a085, #1abc9c); }
+    .card { border-radius: 12px; box-shadow: 0 6px 18px rgba(0,0,0,0.1); margin-bottom: 25px; }
+    table { table-layout: fixed; word-wrap: break-word; }
+    .draft-text { white-space: pre-wrap; font-size: 0.95rem; }
+    footer { text-align: center; padding: 15px 0; color: #7f8c8d; }
   </style>
 </head>
 <body>
 
-  <!-- Header -->
   <header>
     <h1>FlowCraft AutoReply Dashboard</h1>
   </header>
 
   <div class="container">
 
-    <!-- Fetch Emails Button -->
     <div class="text-center mb-4">
       <a href="/fetch_emails" class="btn btn-primary btn-lg">Fetch New Emails</a>
     </div>
 
-    <!-- Queue Table -->
     <div class="card p-4">
       <h5 class="card-title mb-4">Manual Review Queue</h5>
-      {% if queue %}
+
+      {% if queue and queue|length > 0 %}
         <div class="table-responsive">
           <table class="table table-striped align-middle">
             <thead>
@@ -99,18 +58,17 @@
           </table>
         </div>
       {% else %}
-        <p class="text-muted">No drafts in queue.</p>
+        <p class="text-muted mb-0">No drafts in queue.</p>
       {% endif %}
+
     </div>
 
   </div>
 
-  <!-- Footer -->
   <footer>
     &copy; 2025 FlowCraftCo | AutoReply Demo
   </footer>
 
-  <!-- Bootstrap JS -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
