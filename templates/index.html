@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>FlowCraft AutoReply Demo</title>
+  </head>
+  <body>
+    <h1>FlowCraft AutoReply Demo</h1>
+    <p>Manual review queue:</p>
+    <ul>
+      {% for email in queue %}
+        <li>
+          <strong>{{ email.subject }}</strong> from {{ email.from }}<br>
+          Draft: {{ email.draft }}<br>
+          <a href="/send/{{ loop.index0 }}">Approve & Send</a>
+        </li>
+      {% else %}
+        <li>No drafts in queue.</li>
+      {% endfor %}
+    </ul>
+    <a href="/fetch_emails">Fetch New Emails</a>
+  </body>
+</html>
