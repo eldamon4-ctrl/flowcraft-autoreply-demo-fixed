@@ -1,4 +1,4 @@
-# app.py - FlowCraft AutoReply (robust send + better prompt + safe error handling)
+                    # app.py - FlowCraft AutoReply (stable + professional replies)
 import os
 import imaplib
 import smtplib
@@ -6,20 +6,19 @@ import email
 from email.mime.text import MIMEText
 from email.header import decode_header
 from email.utils import parseaddr
-import openai
 from flask import Flask, render_template, redirect, url_for, request
+from openai import OpenAI
 
-# ---------- CONFIG FROM ENV ----------
+# ---------- CONFIG ----------
 EMAIL_ACCOUNT = os.environ.get("EMAIL_ACCOUNT")
-EMAIL_PASSWORD = os.environ.get("EMAIL_PASSWORD")  # 16-char App Password (no spaces)
+EMAIL_PASSWORD = os.environ.get("EMAIL_PASSWORD")  # 16-char Gmail App Password, no spaces
 IMAP_SERVER = "imap.gmail.com"
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 465
-openai.api_key = os.environ.get("OPENAI_API_KEY")
+openai_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
 # ---------- APP ----------
 app = Flask(__name__)
-# Global in-memory queue for demo (reset on process restart)
 review_queue = []
 sent_history = []
 
@@ -61,38 +60,32 @@ Original email:
 If the email is clearly a sales inquiry, offer a next step (e.g., "Would you like a quick call?"). If it's a request, offer to deliver the item or next action. Always include one clear call-to-action when appropriate.
 """
     try:
-        from openai import OpenAI
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
-resp = client.chat.completions.create(
-    model="gpt-4o-mini",
-    messages=[
-        {"role": "system", "content": system_msg},
-        {"role": "user", "content": user_prompt}
-    ],
-    temperature=0.6,
-    max_tokens=400
-)
-draft = resp.choices[0].message.content.strip()
+        resp = openai_client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": system_msg},
+                {"role": "user", "content": user_prompt}
+            ],
+            temperature=0.6,
+            max_tokens=400
+        )
+        draft = resp.choices[0].message.content.strip()
         return draft
     except Exception as e:
         return f"(Error generating reply: {e})"
 
-# ---------- FLASK ROUTES ----------
+# ---------- ROUTES ----------
 @app.route("/")
 def index():
-    # optional message from query param
     msg = request.args.get("msg", "")
     return render_template("index.html", queue=review_queue, message=msg)
 
 @app.route("/fetch_emails")
 def fetch_emails():
     try:
-        # connect IMAP
         mail = imaplib.IMAP4_SSL(IMAP_SERVER)
         mail.login(EMAIL_ACCOUNT, EMAIL_PASSWORD)
         mail.select("inbox")
-
         status, data = mail.search(None, "(UNSEEN)")
         if status != "OK":
             mail.logout()
@@ -107,19 +100,16 @@ def fetch_emails():
             try:
                 _, fetch_data = mail.fetch(e_id, "(RFC822)")
                 raw = fetch_data[0][1]
-                msg = email.message_from_bytes(raw)
+                msg_obj = email.message_from_bytes(raw)
 
-                # decode headers safely
-                raw_from = decode_header_value(msg.get("From", ""))
-                raw_subject = decode_header_value(msg.get("Subject", "(no subject)"))
-
-                # extract plain email address
+                raw_from = decode_header_value(msg_obj.get("From", ""))
+                raw_subject = decode_header_value(msg_obj.get("Subject", "(no subject)"))
                 from_addr = extract_email_address(raw_from)
 
-                # get body (prefer plain text)
+                # get plain text body
                 body = ""
-                if msg.is_multipart():
-                    for part in msg.walk():
+                if msg_obj.is_multipart():
+                    for part in msg_obj.walk():
                         ctype = part.get_content_type()
                         cdisp = str(part.get("Content-Disposition"))
                         if ctype == "text/plain" and "attachment" not in cdisp:
@@ -129,19 +119,16 @@ def fetch_emails():
                             except:
                                 body = part.get_payload(decode=True).decode("utf-8", errors="ignore")
                 else:
-                    body = msg.get_payload(decode=True).decode(msg.get_content_charset() or "utf-8", errors="ignore")
+                    body = msg_obj.get_payload(decode=True).decode(msg_obj.get_content_charset() or "utf-8", errors="ignore")
 
-                # generate draft via OpenAI (FlowCraft style)
                 draft = generate_flowcraft_reply(body)
 
-                # add to in-memory review queue
                 review_queue.append({
                     "from": from_addr or raw_from,
                     "subject": raw_subject,
                     "draft": draft
                 })
             except Exception as inner_e:
-                # skip this email but log it in queue as error note
                 review_queue.append({
                     "from": "(error reading email)",
                     "subject": "(error)",
@@ -158,7 +145,6 @@ def fetch_emails():
 
 @app.route("/send/<int:index>")
 def send_draft(index):
-    # send selected draft; only pop after successful send
     try:
         if index < 0 or index >= len(review_queue):
             return redirect(url_for("index", msg="Invalid queue index."))
@@ -167,31 +153,26 @@ def send_draft(index):
         to_addr = item.get("from")
         subject = item.get("subject") or ""
         body = item.get("draft") or ""
-
-        # ensure we have a plain recipient address
         to_addr_plain = extract_email_address(to_addr)
         if not to_addr_plain:
             return redirect(url_for("index", msg="Cannot determine recipient email address."))
 
-        # compose email with proper headers and utf-8
         msg = MIMEText(body, _subtype="plain", _charset="utf-8")
         msg["Subject"] = f"Re: {subject}"
-        # presentable From header
         msg["From"] = f"FlowCraftCo Support <{EMAIL_ACCOUNT}>"
         msg["To"] = to_addr_plain
 
-        # send via SMTP over SSL
+        # send email
         with smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT) as server:
             server.login(EMAIL_ACCOUNT, EMAIL_PASSWORD)
             server.sendmail(EMAIL_ACCOUNT, [to_addr_plain], msg.as_string())
 
-        # remove from queue after success and record in history
+        # remove from queue after successful send
         sent_history.append({
             "to": to_addr_plain,
             "subject": subject,
             "body": body
         })
-        # now pop
         review_queue.pop(index)
 
         return redirect(url_for("index", msg=f"Email sent to {to_addr_plain}"))
@@ -202,11 +183,9 @@ def send_draft(index):
     except Exception as e:
         return redirect(url_for("index", msg=f"Error sending email: {e}"))
 
-# optional: route to show last sent items (not necessary for demo)
 @app.route("/sent")
 def show_sent():
     return render_template("sent.html", sent=sent_history)
 
 if __name__ == "__main__":
-    # debug true only for local testing; Render uses gunicorn
     app.run(host="0.0.0.0", port=10000, debug=True)
