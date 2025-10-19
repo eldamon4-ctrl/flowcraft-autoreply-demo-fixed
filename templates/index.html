@@ -3,69 +3,214 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FlowCraft AutoReply Demo</title>
+<title>FlowCraft AutoReply Dashboard</title>
+
+<!-- Bootstrap CSS -->
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+<!-- Custom Styles -->
 <style>
-body { font-family: 'Segoe UI', sans-serif; background-color: #f4f6f9; color: #2c3e50; }
-header { background: linear-gradient(90deg, #2c3e50, #1abc9c); color: white; padding: 20px 0; text-align: center; margin-bottom: 30px; box-shadow:0 4px 6px rgba(0,0,0,0.1);}
-header h1 { margin:0; font-size:2rem; font-weight:700; }
-.btn-primary { background: linear-gradient(90deg,#1abc9c,#16a085); border:none; }
-.btn-primary:hover { background: linear-gradient(90deg,#16a085,#1abc9c); }
-.card { border-radius:12px; box-shadow:0 6px 18px rgba(0,0,0,0.1); margin-bottom:25px; }
-.draft-text { white-space: pre-wrap; font-size:0.95rem; }
-footer { text-align:center; padding:15px 0; color:#7f8c8d; }
+:root {
+    --primary-color: #1abc9c;
+    --secondary-color: #16a085;
+    --bg-light: #f4f6f9;
+    --bg-dark: #1e1e1e;
+    --text-light: #ffffff;
+    --text-dark: #2c3e50;
+}
+body {
+    font-family: 'Segoe UI', sans-serif;
+    margin: 0;
+    padding: 0;
+    transition: background 0.3s, color 0.3s;
+}
+body.light-mode {
+    background-color: var(--bg-light);
+    color: var(--text-dark);
+}
+body.dark-mode {
+    background-color: var(--bg-dark);
+    color: var(--text-light);
+}
+
+/* Sidebar */
+#sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    width: 220px;
+    background: linear-gradient(180deg, var(--primary-color), var(--secondary-color));
+    padding-top: 60px;
+    transition: transform 0.3s ease;
+    z-index: 1000;
+}
+#sidebar a {
+    color: white;
+    display: block;
+    padding: 15px 20px;
+    text-decoration: none;
+    font-weight: 500;
+}
+#sidebar a:hover {
+    background-color: rgba(255,255,255,0.1);
+}
+#content {
+    margin-left: 220px;
+    padding: 20px;
+}
+
+/* Header */
+header {
+    position: fixed;
+    top: 0;
+    left: 220px;
+    width: calc(100% - 220px);
+    background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+    padding: 15px 20px;
+    color: white;
+    font-size: clamp(1.5rem, 2.5vw, 2.2rem);
+    font-weight: 700;
+    z-index: 999;
+}
+
+/* Cards and tables */
+.card {
+    border-radius: 12px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.1);
+    margin-bottom: 25px;
+}
+.table td, .table th {
+    word-wrap: break-word;
+    vertical-align: middle;
+}
+.draft-text {
+    white-space: pre-wrap;
+    font-size: 0.95rem;
+}
+
+/* Footer */
+footer {
+    text-align: center;
+    padding: 15px 0;
+    color: #7f8c8d;
+    margin-top: 50px;
+}
+
+/* Toggle Button */
+#toggleMode {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 1100;
+}
 </style>
 </head>
-<body>
+<body class="light-mode">
 
-<header><h1>FlowCraft AutoReply Demo</h1></header>
-<div class="container">
-
-<!-- Fetch Emails -->
-<div class="text-center mb-4">
-  <a href="/fetch_emails" class="btn btn-primary btn-lg">Fetch New Email</a>
+<!-- Sidebar -->
+<div id="sidebar">
+    <h4 class="text-center text-light">FlowCraft</h4>
+    <a href="/fetch_emails">Fetch Emails</a>
+    <a href="#queue">Manual Review</a>
+    <a href="#history">Sent History</a>
 </div>
 
-<!-- Queue -->
-<div class="card p-4">
-  <h5 class="card-title mb-4">Manual Review Queue</h5>
-  {% if queue %}
-  <div class="table-responsive">
-    <table class="table table-striped align-middle">
-      <thead><tr><th>From</th><th>Subject</th><th>Draft</th><th>Action</th></tr></thead>
-      <tbody>
-        {% for email in queue %}
-        <tr>
-          <td>{{ email.from }}</td>
-          <td>{{ email.subject }}</td>
-          <td class="draft-text">{{ email.draft }}</td>
-          <td><a href="/send/{{ loop.index0 }}" class="btn btn-success btn-sm">Approve & Send</a></td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-  {% else %}
-  <p class="text-muted">No drafts in queue.</p>
-  {% endif %}
+<!-- Header -->
+<header>
+    FlowCraft AutoReply Dashboard
+</header>
+
+<!-- Main Content -->
+<div id="content" class="container-fluid mt-5 pt-4">
+
+    <!-- Manual Review Queue -->
+    <div class="card p-4" id="queue">
+        <h5 class="card-title mb-4">Manual Review Queue</h5>
+        {% if queue %}
+        <div class="table-responsive">
+            <table class="table table-striped align-middle">
+                <thead>
+                    <tr>
+                        <th>From</th>
+                        <th>Subject</th>
+                        <th>Draft</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for email in queue %}
+                    <tr>
+                        <td>{{ email.from }}</td>
+                        <td>{{ email.subject }}</td>
+                        <td class="draft-text">{{ email.draft }}</td>
+                        <td>
+                            <a href="/send/{{ loop.index0 }}" class="btn btn-success btn-sm">Approve & Send</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted">No drafts in queue.</p>
+        {% endif %}
+    </div>
+
+    <!-- Sent History -->
+    <div class="card p-4 mt-4" id="history">
+        <h5 class="card-title mb-4">Sent History (Simulated)</h5>
+        {% if history %}
+        <ul class="list-group">
+            {% for item in history %}
+            <li class="list-group-item">
+                <strong>To:</strong> {{ item.to }} | 
+                <strong>Subject:</strong> {{ item.subject }}
+                <br>{{ item.body }}
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-muted">No emails sent yet.</p>
+        {% endif %}
+    </div>
+
 </div>
 
-<!-- Sent History -->
-<div class="card p-4 mt-4">
-<h5 class="card-title mb-4">Sent History (Simulated)</h5>
-{% if history %}
-  <ul class="list-group">
-    {% for item in history %}
-      <li class="list-group-item"><strong>To:</strong> {{ item.to }} | <strong>Subject:</strong> {{ item.subject }}<br>{{ item.body }}</li>
-    {% endfor %}
-  </ul>
-{% else %}
-  <p class="text-muted">No emails sent yet.</p>
-{% endif %}
-</div>
+<!-- Dark/Light Mode Toggle -->
+<button id="toggleMode" class="btn btn-primary">Toggle Dark/Light</button>
 
-</div>
-<footer>&copy; 2025 FlowCraftCo | AutoReply Demo</footer>
+<!-- Footer -->
+<footer>
+    &copy; 2025 FlowCraftCo | AutoReply Demo
+</footer>
+
+<!-- Bootstrap JS -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- Custom JS -->
+<script>
+const toggleBtn = document.getElementById('toggleMode');
+toggleBtn.addEventListener('click', () => {
+    document.body.classList.toggle('dark-mode');
+    document.body.classList.toggle('light-mode');
+});
+
+// Optional: simulate real-time notifications (demo only)
+function showNotification(msg) {
+    const notif = document.createElement('div');
+    notif.className = 'alert alert-success position-fixed top-0 end-0 m-3';
+    notif.style.zIndex = 1200;
+    notif.textContent = msg;
+    document.body.appendChild(notif);
+    setTimeout(() => notif.remove(), 4000);
+}
+
+// Example: notify when page loads (for demo)
+window.onload = () => {
+    showNotification('Welcome to FlowCraft AutoReply Demo!');
+};
+</script>
+
 </body>
 </html>
