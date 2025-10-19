@@ -47,12 +47,12 @@ Email content:
 {new_email['body']}
 
 Reply in clear English, include a subtle brand signature like 'Customer Support – FlowCraftCo'."""
-        response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=250
-        )
-        draft = response.choices[0].message.content.strip()
+        response = openai.chat.completions.create(
+    model="gpt-3.5-turbo",
+    messages=[{"role": "user", "content": prompt}],
+    max_tokens=250
+)
+draft = response.choices[0].message["content"].strip()
     except Exception as e:
         draft = f"Error generating reply: {e}"
 
