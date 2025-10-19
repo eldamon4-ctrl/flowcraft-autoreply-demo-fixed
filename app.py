@@ -1,7 +1,13 @@
 import random
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect, url_for, session
+from datetime import timedelta
 
 app = Flask(__name__)
+app.secret_key = "your_super_secret_key_here"  # Change this to a strong secret
+app.permanent_session_lifetime = timedelta(hours=1)  # Optional: session lasts 1 hour
+
+# ---------- CONFIG ----------
+MAX_QUEUE = 5  # Max drafts per user session
 
 # ---------- SAMPLE INBOX ----------
 sample_emails = [
@@ -22,9 +28,6 @@ sample_emails = [
     },
 ]
 
-review_queue = []
-sent_history = []
-
 # ---------- DUMMY AI REPLIES ----------
 DUMMY_REPLIES = [
     "Hello,\n\nThank you for reaching out! We would be happy to assist and discuss the details further. Please let us know a suitable time for a call.\n\nBest regards,\nCustomer Support – FlowCraftCo",
@@ -35,20 +38,43 @@ DUMMY_REPLIES = [
 # ---------- ROUTES ----------
 @app.route("/")
 def index():
-    return render_template("index.html", queue=review_queue, history=sent_history, msg=request.args.get("msg", ""))
+    session.permanent = True
+    if "review_queue" not in session:
+        session["review_queue"] = []
+    if "sent_history" not in session:
+        session["sent_history"] = []
+
+    return render_template(
+        "index.html",
+        queue=session["review_queue"],
+        history=session["sent_history"],
+        msg=request.args.get("msg", "")
+    )
 
 @app.route("/fetch_emails")
 def fetch_emails():
-    # Simulate fetching random emails from the sample inbox
+    session.permanent = True
+    review_queue = session.get("review_queue", [])
+
+    # Limit queue per user
+    if len(review_queue) >= MAX_QUEUE:
+        review_queue.pop(0)  # Remove oldest draft
+
+    # Simulate fetching random email
     new_email = random.choice(sample_emails).copy()
-    # Assign a random dummy AI reply
     draft = random.choice(DUMMY_REPLIES)
     new_email["draft"] = draft
     review_queue.append(new_email)
+
+    session["review_queue"] = review_queue
     return redirect(url_for("index", msg="Fetched new email draft!"))
 
 @app.route("/send/<int:index>")
 def send_draft(index):
+    session.permanent = True
+    review_queue = session.get("review_queue", [])
+    sent_history = session.get("sent_history", [])
+
     try:
         if index < 0 or index >= len(review_queue):
             return redirect(url_for("index", msg="Invalid queue index."))
@@ -60,6 +86,10 @@ def send_draft(index):
             "body": item["draft"]
         })
         review_queue.pop(index)
+
+        session["review_queue"] = review_queue
+        session["sent_history"] = sent_history
+
         return redirect(url_for("index", msg=f"Email reply approved (simulated send) to {item['from']}"))
     except Exception as e:
         return redirect(url_for("index", msg=f"Error: {e}"))
