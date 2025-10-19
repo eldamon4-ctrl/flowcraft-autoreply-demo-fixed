@@ -1,10 +1,6 @@
 import random
 from flask import Flask, render_template, request, redirect, url_for
-import openai
-import os
 
-# ---------- CONFIG ----------
-openai.api_key = os.environ.get("OPENAI_API_KEY")  # Set this in Render secrets
 app = Flask(__name__)
 
 # ---------- SAMPLE INBOX ----------
@@ -29,6 +25,13 @@ sample_emails = [
 review_queue = []
 sent_history = []
 
+# ---------- DUMMY AI REPLIES ----------
+DUMMY_REPLIES = [
+    "Hello,\n\nThank you for reaching out! We would be happy to assist and discuss the details further. Please let us know a suitable time for a call.\n\nBest regards,\nCustomer Support – FlowCraftCo",
+    "Hi,\n\nThank you for your inquiry. We can provide a detailed quote for our automation services. Let us know your requirements so we can prepare it promptly.\n\nBest regards,\nCustomer Support – FlowCraftCo",
+    "Good morning,\n\nThank you for contacting us. We have resent the latest invoice for your review. Please confirm receipt.\n\nBest regards,\nCustomer Support – FlowCraftCo"
+]
+
 # ---------- ROUTES ----------
 @app.route("/")
 def index():
@@ -38,26 +41,8 @@ def index():
 def fetch_emails():
     # Simulate fetching random emails from the sample inbox
     new_email = random.choice(sample_emails).copy()
-    # Generate AI draft using latest OpenAI API
-    try:
-        prompt = f"""You are a professional human customer support assistant for FlowCraftCo.
-Generate a polite, professional email reply to the following message, keeping the tone human-like:
-
-Email content:
-{new_email['body']}
-
-Reply in clear English, include a subtle brand signature like 'Customer Support – FlowCraftCo'."""
-        
-        response = openai.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.5,
-            max_tokens=250
-        )
-        draft = response.choices[0].message["content"].strip()
-    except Exception as e:
-        draft = f"Error generating reply: {e}"
-
+    # Assign a random dummy AI reply
+    draft = random.choice(DUMMY_REPLIES)
     new_email["draft"] = draft
     review_queue.append(new_email)
     return redirect(url_for("index", msg="Fetched new email draft!"))
