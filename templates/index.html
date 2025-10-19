@@ -8,6 +8,9 @@
 <!-- Bootstrap CSS -->
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 
+<!-- Icons -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+
 <!-- Custom Styles -->
 <style>
 :root {
@@ -44,6 +47,7 @@ body.dark-mode {
     padding-top: 60px;
     transition: transform 0.3s ease;
     z-index: 1000;
+    overflow-y: auto;
 }
 #sidebar a {
     color: white;
@@ -55,9 +59,25 @@ body.dark-mode {
 #sidebar a:hover {
     background-color: rgba(255,255,255,0.1);
 }
+#sidebar .submenu {
+    display: none;
+    padding-left: 15px;
+}
+#sidebar .submenu a {
+    padding: 10px 20px;
+    font-size: 0.9rem;
+}
+#sidebar .dropdown-toggle::after {
+    float: right;
+    transition: transform 0.3s;
+}
+#sidebar .dropdown-toggle.collapsed::after {
+    transform: rotate(-90deg);
+}
 #content {
     margin-left: 220px;
     padding: 20px;
+    transition: margin-left 0.3s;
 }
 
 /* Header */
@@ -97,12 +117,14 @@ footer {
     margin-top: 50px;
 }
 
-/* Toggle Button */
+/* Dark mode toggle icon */
 #toggleMode {
     position: fixed;
     bottom: 20px;
     right: 20px;
     z-index: 1100;
+    font-size: 1.5rem;
+    cursor: pointer;
 }
 </style>
 </head>
@@ -111,9 +133,15 @@ footer {
 <!-- Sidebar -->
 <div id="sidebar">
     <h4 class="text-center text-light">FlowCraft</h4>
-    <a href="/fetch_emails">Fetch Emails</a>
-    <a href="#queue">Manual Review</a>
-    <a href="#history">Sent History</a>
+    <a href="/fetch_emails"><i class="bi bi-envelope-fill me-2"></i>Fetch Emails</a>
+    <a class="dropdown-toggle collapsed" href="#" id="queueToggle"><i class="bi bi-list-task me-2"></i>Manual Review</a>
+    <div class="submenu" id="queueMenu">
+        <a href="#queue">Queue</a>
+    </div>
+    <a class="dropdown-toggle collapsed" href="#" id="historyToggle"><i class="bi bi-send-fill me-2"></i>Sent History</a>
+    <div class="submenu" id="historyMenu">
+        <a href="#history">History</a>
+    </div>
 </div>
 
 <!-- Header -->
@@ -178,7 +206,7 @@ footer {
 </div>
 
 <!-- Dark/Light Mode Toggle -->
-<button id="toggleMode" class="btn btn-primary">Toggle Dark/Light</button>
+<i id="toggleMode" class="bi bi-moon-fill text-primary"></i>
 
 <!-- Footer -->
 <footer>
@@ -190,26 +218,42 @@ footer {
 
 <!-- Custom JS -->
 <script>
-const toggleBtn = document.getElementById('toggleMode');
-toggleBtn.addEventListener('click', () => {
-    document.body.classList.toggle('dark-mode');
-    document.body.classList.toggle('light-mode');
+document.addEventListener("DOMContentLoaded", function() {
+    // Dropdown menus
+    const queueToggle = document.getElementById("queueToggle");
+    const queueMenu = document.getElementById("queueMenu");
+    queueToggle.addEventListener("click", () => {
+        queueMenu.style.display = queueMenu.style.display === "block" ? "none" : "block";
+        queueToggle.classList.toggle("collapsed");
+    });
+
+    const historyToggle = document.getElementById("historyToggle");
+    const historyMenu = document.getElementById("historyMenu");
+    historyToggle.addEventListener("click", () => {
+        historyMenu.style.display = historyMenu.style.display === "block" ? "none" : "block";
+        historyToggle.classList.toggle("collapsed");
+    });
+
+    // Dark/Light Mode Toggle
+    const toggleBtn = document.getElementById('toggleMode');
+    toggleBtn.addEventListener('click', () => {
+        document.body.classList.toggle('dark-mode');
+        document.body.classList.toggle('light-mode');
+        toggleBtn.classList.toggle('bi-moon-fill');
+        toggleBtn.classList.toggle('bi-sun-fill');
+    });
+
+    // Example: show notification on load
+    function showNotification(msg) {
+        const notif = document.createElement('div');
+        notif.className = 'alert alert-success position-fixed top-0 end-0 m-3';
+        notif.style.zIndex = 1200;
+        notif.textContent = msg;
+        document.body.appendChild(notif);
+        setTimeout(() => notif.remove(), 4000);
+    }
+    window.onload = () => showNotification('Welcome to FlowCraft AutoReply Demo!');
 });
-
-// Optional: simulate real-time notifications (demo only)
-function showNotification(msg) {
-    const notif = document.createElement('div');
-    notif.className = 'alert alert-success position-fixed top-0 end-0 m-3';
-    notif.style.zIndex = 1200;
-    notif.textContent = msg;
-    document.body.appendChild(notif);
-    setTimeout(() => notif.remove(), 4000);
-}
-
-// Example: notify when page loads (for demo)
-window.onload = () => {
-    showNotification('Welcome to FlowCraft AutoReply Demo!');
-};
 </script>
 
 </body>
