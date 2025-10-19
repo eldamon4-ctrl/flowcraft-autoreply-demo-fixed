@@ -1,78 +1,97 @@
-import random
-from flask import Flask, render_template, request, redirect, url_for
+import imaplib
+import smtplib
+import email
+from email.mime.text import MIMEText
 import openai
 import os
+from flask import Flask, request, render_template, redirect, url_for
 
 # ---------- CONFIG ----------
-openai.api_key = os.environ.get("OPENAI_API_KEY")  # Set this in Render secrets
+GMAIL_USER = os.environ.get("GMAIL_USER")      # your Gmail address
+GMAIL_PASS = os.environ.get("GMAIL_APP_PASS")  # 16-char app password
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+IMAP_SERVER = "imap.gmail.com"
+SMTP_SERVER = "smtp.gmail.com"
+SMTP_PORT = 587
+
+openai.api_key = OPENAI_API_KEY
+
+# ---------- FLASK APP ----------
 app = Flask(__name__)
 
-# ---------- SAMPLE INBOX ----------
-sample_emails = [
-    {
-        "from": "client1@business.com",
-        "subject": "Partnership Proposal",
-        "body": "Hello, we are interested in a potential partnership with FlowCraftCo. Can we schedule a call?"
-    },
-    {
-        "from": "client2@enterprise.com",
-        "subject": "Request for Service Quote",
-        "body": "Hi, please provide a quote for your automation services. Thanks!"
-    },
-    {
-        "from": "client3@startup.io",
-        "subject": "Invoice Inquiry",
-        "body": "Good morning, we haven’t received the latest invoice. Could you resend it?"
-    },
-]
-
-review_queue = []
-sent_history = []
+# In-memory queues for demo
+queue = []
+history = []
 
 # ---------- ROUTES ----------
 @app.route("/")
 def index():
-    return render_template("index.html", queue=review_queue, history=sent_history, msg=request.args.get("msg", ""))
+    return render_template("index.html", queue=queue, history=history)
 
 @app.route("/fetch_emails")
 def fetch_emails():
-    # Simulate fetching random emails from the sample inbox
-    new_email = random.choice(sample_emails).copy()
-    # Generate AI draft
     try:
-        prompt = f"""You are a professional human customer support assistant for FlowCraftCo.
-Generate a polite, professional email reply to the following message, keeping the tone human-like:
+        mail = imaplib.IMAP4_SSL(IMAP_SERVER)
+        mail.login(GMAIL_USER, GMAIL_PASS)
+        mail.select("inbox")
+        typ, data = mail.search(None, 'UNSEEN')
+        mail_ids = data[0].split()
+        for num in mail_ids:
+            typ, msg_data = mail.fetch(num, '(RFC822)')
+            for response_part in msg_data:
+                if isinstance(response_part, tuple):
+                    msg = email.message_from_bytes(response_part[1])
+                    subject = msg["subject"]
+                    sender = msg["from"]
+                    body = ""
+                    if msg.is_multipart():
+                        for part in msg.walk():
+                            if part.get_content_type() == "text/plain":
+                                body = part.get_payload(decode=True).decode()
+                    else:
+                        body = msg.get_payload(decode=True).decode()
+                    
+                    # Generate draft reply safely
+                    prompt = f"Write a professional email reply to:\n\n{body}\n\nKeep it polite, concise, and friendly."
+                    try:
+                        response = openai.chat.completions.create(
+                            model="gpt-3.5-turbo",
+                            messages=[{"role": "user", "content": prompt}],
+                            max_tokens=250
+                        )
+                        draft = response.choices[0].message["content"].strip()
+                    except Exception as e:
+                        draft = f"Error generating reply: {e}"
 
-Email content:
-{new_email['body']}
-
-Reply in clear English, include a subtle brand signature like 'Customer Support – FlowCraftCo'."""
-        response = openai.chat.completions.create(
-    model="gpt-3.5-turbo",
-    messages=[{"role": "user", "content": prompt}],
-    max_tokens=250
-)
-draft = response.choices[0].message["content"].strip()
+                    queue.append({"from": sender, "subject": subject, "draft": draft})
+        mail.logout()
+        return redirect(url_for("index"))
     except Exception as e:
-        draft = f"Error generating reply: {e}"
-
-    new_email["draft"] = draft
-    review_queue.append(new_email)
-    return redirect(url_for("index", msg="Fetched new email draft!"))
+        return f"Error fetching emails: {e}"
 
 @app.route("/send/<int:index>")
-def send_draft(index):
+def send_email(index):
+    if index >= len(queue):
+        return "Invalid index"
+    item = queue.pop(index)
     try:
-        if index < 0 or index >= len(review_queue):
-            return redirect(url_for("index", msg="Invalid queue index."))
-
-        item = review_queue[index]
-        sent_history.append({
-            "to": item["from"],
-            "subject": item["subject"],
-            "body": item["draft"]
-        })
-        review_queue.pop(index)
-        return redirect(url_for("index", msg=f"Email reply approved (simulated send) to {item['from']}"))
+        # Connect SMTP
+        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+        server.starttls()
+        server.login(GMAIL_USER, GMAIL_PASS)
+        msg = MIMEText(item["draft"])
+        msg["Subject"] = item["subject"]
+        msg["From"] = GMAIL_USER
+        msg["To"] = item["from"]
+        server.sendmail(GMAIL_USER, item["from"], msg.as_string())
+        server.quit()
+        # Add to history
+        history.append({"to": item["from"], "subject": item["subject"], "body": item["draft"]})
+        return redirect(url_for("index"))
     except Exception as e:
-        return redirect(url_for("index", msg=f"Error: {e}"))                         
+        # Push back into queue if sending fails
+        queue.insert(index, item)
+        return f"Error sending email: {e}"
+
+if __name__ == "__main__":
+    app.run(debug=True)                    
